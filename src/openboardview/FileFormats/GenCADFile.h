@@ -8,6 +8,7 @@
 #include "mpc/mpc.h"
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,10 @@ class GenCADFile : public BRDFileBase {
 
 	typedef std::tuple<std::string, std::string> ComponentPin;
 	std::map<ComponentPin, std::string> m_signals_cache;
+
+	// stores all loaded shapes to perform duplicate detection
+	typedef std::tuple<int, int, std::string> PositionedNamedShape;
+	std::set<PositionedNamedShape> m_parsed_shapes;
 	int nc_counter = 0;
 
 };
