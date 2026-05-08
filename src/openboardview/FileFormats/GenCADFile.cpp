@@ -69,7 +69,9 @@ bool GenCADFile::parse_file(const std::vector<char> &buf) {
 			if (!components_ast) throw std::string("Failed to parse GenCAD file: the $COMPONENTS section was not parsed properly");
 
 			devices_ast = mpc_ast_get_child(ast, "devices|>");
-			if (!devices_ast) throw std::string("Failed to parse GenCAD file: the $DEVICES section was not parsed properly");
+			if (!devices_ast) {
+				SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to parse GenCAD file: the $DEVICES section was not parsed properly");
+			}
 
 			signals_ast = mpc_ast_get_child(ast, "signals|>");
 			if (!signals_ast) throw std::string("Failed to parse GenCAD file: the $SIGNALS section was not parsed properly");
