@@ -4,7 +4,7 @@ FROM debian:10.13-slim AS linux-build-env
 ARG DEBIAN_FRONTEND=noninteractive DEBCONF_NOWARNINGS=yes
 RUN sed "s/deb.debian.org/archive.debian.org/g" -i /etc/apt/sources.list && \
     apt-get update && \
-    apt-get -y install --no-install-recommends ca-certificates g++ make cmake rpm libsdl2-dev libgtk-3-dev python3-jinja2 git && \
+    apt-get -y install --no-install-recommends ca-certificates g++ make cmake rpm libsdl2-dev libgtk-3-dev python3-jinja2 python3-pkg-resources git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
