@@ -245,7 +245,7 @@ void BoardView::ShowInfoPane(void) {
 	} else {
 		if (m_dragging_token == 2) {
 			config.infoPanelWidth = IDPIF(m_info_surface.x); // Convert back to DPI-independant value
-			obvconfig.WriteInt("infoPanelWidth", m_info_surface.x);
+			obvconfig.WriteInt("infoPanelWidth", config.infoPanelWidth);
 		}
 		m_dragging_token = 0;
 	}
