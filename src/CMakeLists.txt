@@ -97,12 +97,6 @@ execute_process(
 	COMMAND git submodule update --init src/imgui
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-add_definitions("-DImDrawIdx=unsigned int") # short is not enough for us
-add_definitions("-DIMGUI_IMPL_OPENGL_LOADER_GLAD") # We use glad
-# Configure GL3 renderer to be GLES2 compatible if GLES2 is enabled
-if(ENABLE_GLES2)
-    add_definitions("-DIMGUI_IMPL_OPENGL_ES2")
-endif()
 
 # workaround for OpenGL include for OpenGL2, need to be glad rather than gl itself
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_opengl2.cpp" input)
@@ -137,6 +131,17 @@ if(ENABLE_GL3)
 endif()
 
 add_library(imgui STATIC ${SOURCES})
+target_compile_definitions(imgui PUBLIC "-DImDrawIdx=unsigned int") # short is not enough for us
+target_compile_definitions(imgui PUBLIC "-DIMGUI_IMPL_OPENGL_LOADER_GLAD") # We use glad
+# Configure GL3 renderer to be GLES2 compatible if GLES2 is enabled
+if(ENABLE_GLES2)
+	target_compile_definitions(imgui PUBLIC "-DIMGUI_IMPL_OPENGL_ES2")
+endif()
+target_include_directories(imgui PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/imgui
+	${CMAKE_CURRENT_SOURCE_DIR}/imgui/examples
+	${CMAKE_CURRENT_SOURCE_DIR}/imgui/misc/cpp
+)
 if(ENABLE_GLES2)
 target_link_libraries(imgui
   glad_gles
@@ -155,9 +160,6 @@ target_link_libraries(imgui
 	SDL2::SDL2
 )
 endif()
-
-set(IMGUI_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/imgui ${CMAKE_CURRENT_SOURCE_DIR}/imgui/examples)
-
 
 #install(TARGETS imgui DESTINATION ${INSTALL_ARCHIVE_DIR}) # No need to install a static lib
 
