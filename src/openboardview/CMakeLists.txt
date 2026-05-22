@@ -60,11 +60,11 @@ else()
 endif()
 
 set(SOURCES
-	annotations.cpp
 	confparse.cpp
 	vectorhulls.cpp
 	history.cpp
 	utils.cpp
+	Annotations.cpp
 	BoardView.cpp
 	Board.cpp
 	BRDBoard.cpp

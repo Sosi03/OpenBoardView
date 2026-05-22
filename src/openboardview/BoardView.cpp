@@ -32,7 +32,7 @@
 #include "GUI/DPI.h"
 #include "GUI/Fonts.h"
 #include "GUI/widgets.h"
-#include "annotations.h"
+#include "Annotations.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h" // For ImGui::FocusWindow()
 #include "imgui/misc/cpp/imgui_stdlib.h"

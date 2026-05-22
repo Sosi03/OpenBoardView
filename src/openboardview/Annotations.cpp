@@ -9,7 +9,7 @@
 
 #include <SDL.h>
 
-#include "annotations.h"
+#include "Annotations.h"
 
 int Annotations::SetFilename(const std::string &f) {
 	filename = f;
