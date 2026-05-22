@@ -358,6 +358,10 @@ int main(int argc, char **argv) {
 	app.m_board_surface.x = g.width;
 	app.m_board_surface.y = g.height;
 	if (app.config.showInfoPanel) app.m_board_surface.x -= app.m_info_surface.x;
+	if (app.m_board_surface.x <= 0.0f) {
+		app.m_board_surface.x = g.width * 0.66f;
+		app.m_info_surface.x = g.width - app.m_board_surface.x;
+	}
 
 	if (g.font_size > 0.0) app.config.fontSize = g.font_size;
 
