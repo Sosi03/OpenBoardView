@@ -1,8 +1,10 @@
+#include <string>
+#include <vector>
+
 #include "sqlite3.h"
 
-#ifndef __ANNOTATIONS
-#define __ANNOTATIONS
-#define ANNOTATION_FNAME_LEN_MAX 2048
+#ifndef _ANNOTATIONS_H_
+#define _ANNOTATIONS_H_
 
 struct Annotation {
 	int id;
@@ -12,22 +14,24 @@ struct Annotation {
 	bool hovered;
 };
 
-struct Annotations {
+class Annotations {
+private:
 	std::string filename;
 	sqlite3 *sqldb;
-	bool debug = false;
+
+public:
 	std::vector<Annotation> annotations;
 
-	int Init(void);
+	bool Init();
 
-	int SetFilename(const std::string &f);
+	void SetFilename(const std::string &f);
 	bool Load();
 	bool Open(bool create);
-	int Close(void);
-	void Remove(int id);
-	void Add(int side, double x, double y, const char *net, const char *part, const char *pin, const char *note);
-	void Update(int id, char *note);
-	void GenerateList(void);
+	bool Close();
+	bool Remove(int id);
+	bool Add(int side, double x, double y, const std::string &net, const std::string &part, const std::string &pin, const std::string &note);
+	bool Update(int id, const std::string &note);
+	bool GenerateList();
 };
 
-#endif
+#endif//_ANNOTATIONS_H_

@@ -1,61 +1,42 @@
-#include <cmath>
-#include <iostream>
-#include <climits>
-#include <memory>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <vector>
+#include <string>
 
 #include <SDL.h>
 
 #include "Annotations.h"
 
-int Annotations::SetFilename(const std::string &f) {
+void Annotations::SetFilename(const std::string &f) {
 	filename = f;
-	return 0;
 }
 
-/*
-static int sqlCallback(void *NotUsed, int argc, char **argv, char **azColName) {
-    int i;
-    for (i = 0; i < argc; i++) {
-        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    }
-    printf("\n");
-    return 0;
-}
-*/
-
-int Annotations::Init(void) {
-
-	char *zErrMsg = 0;
-	int rc;
-	//	char sql_table_test[] = "SELECT name FROM sqlite_master WHERE type='table' AND name='annotations'";
-	char sql_table_create[] =
+bool Annotations::Init() {
+	static const char sql_table_create[] =
 	    "CREATE TABLE annotations("
-	    "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-	    "VISIBLE INTEGER,"
-	    "PIN TEXT,"
-	    "PART TEXT,"
-	    "NET TEXT,"
-	    "POSX INTEGER,"
-	    "POSY INTEGER,"
-	    "SIDE INTEGER,"
-	    "NOTE TEXT );";
+	    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+	    "visible INTEGER,"
+	    "pin TEXT,"
+	    "part TEXT,"
+	    "net TEXT,"
+	    "posx INTEGER,"
+	    "posy INTEGER,"
+	    "side INTEGER,"
+	    "note TEXT);";
 
-	if (!sqldb) return 1;
-
-	/* Execute SQL statement */
-	rc = sqlite3_exec(sqldb, sql_table_create, NULL, 0, &zErrMsg);
-	if (rc != SQLITE_OK) {
-		if (debug) fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-	} else {
-		if (debug) fprintf(stdout, "Table created successfully\n");
+	if (!sqldb) {
+		return false;
 	}
 
-	return 0;
+	/* Execute SQL statement */
+	char *zErrMsg = 0;
+	int r = sqlite3_exec(sqldb, sql_table_create, NULL, 0, &zErrMsg);
+	if (r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations SQL error: %s", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return false;
+	}
+
+	SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "%s", "Annotations table created successfully");
+
+	return true;
 }
 
 bool Annotations::Load() {
@@ -77,7 +58,7 @@ bool Annotations::Open(bool create) {
 
 	int r = sqlite3_open_v2(sqlfn.c_str(), &sqldb, flags, NULL);
 
-	if (r) {
+	if (r != SQLITE_OK) {
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations database %s could not be opened: %s", sqlfn.c_str(), sqlite3_errmsg(sqldb));
 		sqldb = nullptr;
 		return false;
@@ -91,28 +72,30 @@ bool Annotations::Open(bool create) {
 	return true;
 }
 
-int Annotations::Close(void) {
-	if (sqldb) {
-		sqlite3_close(sqldb);
-		sqldb = NULL;
+bool Annotations::Close() {
+	int r = sqlite3_close(sqldb);
+	sqldb = nullptr;
+
+	if (r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", "Annotations database could not be closed");
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
-void Annotations::GenerateList(void) {
-	sqlite3_stmt *stmt;
-	char sql[] = "SELECT id,side,posx,posy,net,part,pin,note from annotations where visible=1;";
-	int rc;
+bool Annotations::GenerateList() {
+	static const char sql[] = "SELECT id,side,posx,posy,net,part,pin,note FROM annotations WHERE visible=1;";
 
-	rc = sqlite3_prepare_v2(sqldb, sql, -1, &stmt, NULL);
-	if (rc != SQLITE_OK) {
-		if (debug) std::cerr << "SELECT failed: " << sqlite3_errmsg(sqldb) << std::endl;
-		return; // or throw
+	sqlite3_stmt *stmt;
+	int r = sqlite3_prepare_v2(sqldb, sql, -1, &stmt, NULL);
+	if (r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations SELECT statement could not be prepared: %s", sqlite3_errmsg(sqldb));
+		return false;
 	}
 
 	annotations.clear();
-	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+	while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
 		Annotation ann;
 		ann.id      = sqlite3_column_int(stmt, 0);
 		ann.side    = sqlite3_column_int(stmt, 1);
@@ -136,84 +119,141 @@ void Annotations::GenerateList(void) {
 		if (!p) p = "";
 		ann.note  = p;
 
-		if (debug)
-			fprintf(stderr,
-			        "%d(%d:%f,%f) Net:%s Part:%s Pin:%s: Note:%s\nAdded\n",
-			        ann.id,
-			        ann.side,
-			        ann.x,
-			        ann.y,
-			        ann.net.c_str(),
-			        ann.part.c_str(),
-			        ann.pin.c_str(),
-			        ann.note.c_str());
-
 		annotations.push_back(ann);
+
+		SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Annotations added: %d(%d:%f,%f) Net:%s Part:%s Pin:%s: Note:%s",
+				ann.id, ann.side, ann.x, ann.y, ann.net.c_str(), ann.part.c_str(), ann.pin.c_str(), ann.note.c_str());
 	}
-	if (rc != SQLITE_DONE) {
-		if (debug) std::cerr << "SELECT failed: " << sqlite3_errmsg(sqldb) << std::endl;
-		// if you return/throw here, don't forget the finalize
-	}
+
 	sqlite3_finalize(stmt);
+
+	if (r != SQLITE_DONE) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations SELECT statement failed: %s", sqlite3_errmsg(sqldb));
+		// if you return/throw here, don't forget the finalize
+		return false;
+	}
+
+	return true;
 }
 
-void Annotations::Add(int side, double x, double y, const char *net, const char *part, const char *pin, const char *note) {
-	char sql[10240];
-	char *zErrMsg = 0;
-	int r;
+bool Annotations::Add(int side, double x, double y, const std::string &net, const std::string &part, const std::string &pin, const std::string &note) {
+	static const char sql[] = "INSERT INTO annotations (visible, side, posx, posy, net, part, pin, note) VALUES (1, ?, ?, ?, ?, ?, ?, ?);";
 
 	if (!sqldb  && !Open(true)) {
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", "Annotations could not be added, database failed to open");
-		return;
+		return false;
 	}
 
-	sqlite3_snprintf(sizeof(sql),
-	                 sql,
-	                 "INSERT into annotations ( visible, side, posx, posy, net, part, pin, note ) \
-			values ( 1, %d, %0.0f, %0.0f, '%s', '%s', '%s', '%q' );",
-	                 side,
-	                 x,
-	                 y,
-	                 net,
-	                 part,
-	                 pin,
-	                 note);
-
-	r = sqlite3_exec(sqldb, sql, NULL, 0, &zErrMsg);
+	sqlite3_stmt *stmt;
+	int r = sqlite3_prepare_v2(sqldb, sql, -1, &stmt, NULL);
 	if (r != SQLITE_OK) {
-		if (debug) fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-	} else {
-		if (debug) fprintf(stdout, "Records created successfully\n");
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations INSERT statement could not be prepared: %s", sqlite3_errmsg(sqldb));
+		return false;
 	}
+
+	r = sqlite3_bind_int(stmt, 1, side);
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_double(stmt, 2, x);
+	}
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_double(stmt, 3, y);
+	}
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_text(stmt, 4, net.c_str(), -1, SQLITE_TRANSIENT);
+	}
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_text(stmt, 5, part.c_str(), -1, SQLITE_TRANSIENT);
+	}
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_text(stmt, 6, pin.c_str(), -1, SQLITE_TRANSIENT);
+	}
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_text(stmt, 7, note.c_str(), -1, SQLITE_TRANSIENT);
+	}
+
+	if (r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations INSERT statement parameter could not be bound: %s", sqlite3_errmsg(sqldb));
+		r = sqlite3_finalize(stmt);
+		return false;
+	}
+
+	r = sqlite3_step(stmt);
+
+	sqlite3_finalize(stmt);
+
+	if (r != SQLITE_DONE && r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations INSERT statement failed: %s", sqlite3_errmsg(sqldb));
+	}
+
+	return true;
 }
 
-void Annotations::Remove(int id) {
-	char sql[1024];
-	char *zErrMsg = 0;
-	int r;
+bool Annotations::Remove(int id) {
+	static const char sql[] = "UPDATE annotations SET visible = 0 WHERE id=?;";
 
-	sqlite3_snprintf(sizeof(sql), sql, "UPDATE annotations set visible = 0 where id=%d;", id);
-	r = sqlite3_exec(sqldb, sql, NULL, 0, &zErrMsg);
+	sqlite3_stmt *stmt;
+	int r = sqlite3_prepare_v2(sqldb, sql, -1, &stmt, NULL);
 	if (r != SQLITE_OK) {
-		if (debug) fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-	} else {
-		if (debug) fprintf(stdout, "Records created successfully\n");
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations UPDATE statement could not be prepared: %s", sqlite3_errmsg(sqldb));
+		return false;
 	}
+
+	r = sqlite3_bind_int(stmt, 1, id);
+
+	if (r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations UPDATE statement parameter could not be bound: %s", sqlite3_errmsg(sqldb));
+		r = sqlite3_finalize(stmt);
+		return false;
+	}
+
+	r = sqlite3_step(stmt);
+
+	r = sqlite3_finalize(stmt);
+
+	if (r != SQLITE_DONE && r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations UPDATE statement failed: %s", sqlite3_errmsg(sqldb));
+		return false;
+	}
+
+	return true;
 }
 
-void Annotations::Update(int id, char *note) {
-	char sql[10240];
-	char *zErrMsg = 0;
-	int r;
+bool Annotations::Update(int id, const std::string &note) {
+	static const char sql[] = "UPDATE annotations SET note = ? WHERE id=?;";
 
-	sqlite3_snprintf(sizeof(sql), sql, "UPDATE annotations set note = '%q' where id=%d;", note, id);
-	r = sqlite3_exec(sqldb, sql, NULL, 0, &zErrMsg);
+	sqlite3_stmt *stmt;
+	int r = sqlite3_prepare_v2(sqldb, sql, -1, &stmt, NULL);
 	if (r != SQLITE_OK) {
-		if (debug) fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-	} else {
-		if (debug) fprintf(stdout, "Records created successfully\n");
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations UPDATE statement could not be prepared: %s", sqlite3_errmsg(sqldb));
+		return false;
 	}
+
+	r = sqlite3_bind_int(stmt, 2, id);
+
+	if (r == SQLITE_OK) {
+		r = sqlite3_bind_text(stmt, 1, note.c_str(), -1, SQLITE_TRANSIENT);
+	}
+
+	if (r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations UPDATE statement parameter could not be bound: %s", sqlite3_errmsg(sqldb));
+		r = sqlite3_finalize(stmt);
+		return false;
+	}
+
+	r = sqlite3_step(stmt);
+
+	r = sqlite3_finalize(stmt);
+
+	if (r != SQLITE_DONE && r != SQLITE_OK) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations UPDATE statement failed: %s %d", sqlite3_errmsg(sqldb), r);
+		return false;
+	}
+
+	return true;
 }
