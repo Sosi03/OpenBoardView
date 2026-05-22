@@ -94,6 +94,7 @@ jobs:
           fetch-depth: 0
       - name: MacOS dependencies
         run: |
+          pip3 install jinja2 --break-system-packages
           brew tap-new local/oldermacos
           ln -s $(pwd)/utilities/brew_oldermacos/sdl2.rb "$(brew --repository local/oldermacos)/Formula/sdl2.rb"
           brew install local/oldermacos/sdl2
@@ -110,7 +111,9 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-      - name: MacOS dependencies
+      - name: MacOS dependencies (jinja2)
+        run: pip3 install jinja2 --break-system-packages
+      - name: MacOS dependencies (SDL2)
         uses: BrettDong/setup-sdl2-frameworks@v2 # Installing as a framework to build univeral x86_64 + arm64 binary
         with:
           sdl2: 2.32.0
@@ -138,6 +141,12 @@ jobs:
           pacman -Sy
           pacman -S --noconfirm make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-SDL2
           # Preinstalled python forced into UTF8 mode is used
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install dependencies (jinja2)
+        shell: bash
+        run: PYTHONUTF8=1 python3 -m pip install jinja2 --break-system-packages
       - name: Build ucrt64 debug
         if: always()
         shell: bash
