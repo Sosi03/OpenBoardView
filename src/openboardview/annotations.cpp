@@ -7,6 +7,8 @@
 #include <cstring>
 #include <vector>
 
+#include <SDL.h>
+
 #include "annotations.h"
 
 int Annotations::SetFilename(const std::string &f) {
@@ -56,22 +58,37 @@ int Annotations::Init(void) {
 	return 0;
 }
 
-int Annotations::Load(void) {
+bool Annotations::Load() {
+	return Open(false);
+}
+
+bool Annotations::Open(bool create) {
 	std::string sqlfn                        = filename;
 	auto pos                                 = sqlfn.rfind('.');
 	if (pos != std::string::npos) sqlfn[pos] = '_';
 	sqlfn += ".sqlite3";
 
 	sqldb = nullptr;
-	int r = sqlite3_open(sqlfn.c_str(), &sqldb);
-	if (r) {
-		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(sqldb));
-	} else {
-		if (debug) fprintf(stderr, "Opened database successfully\n");
-		Init();
-		GenerateList();
+	int flags = SQLITE_OPEN_READWRITE;
+
+	if (create) {
+		flags |= SQLITE_OPEN_CREATE;
 	}
-	return 0;
+
+	int r = sqlite3_open_v2(sqlfn.c_str(), &sqldb, flags, NULL);
+
+	if (r) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Annotations database %s could not be opened: %s", sqlfn.c_str(), sqlite3_errmsg(sqldb));
+		sqldb = nullptr;
+		return false;
+	}
+
+	SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Annotations database %s opened successfully", sqlfn.c_str());
+
+	Init();
+	GenerateList();
+
+	return true;
 }
 
 int Annotations::Close(void) {
@@ -144,6 +161,11 @@ void Annotations::Add(int side, double x, double y, const char *net, const char 
 	char sql[10240];
 	char *zErrMsg = 0;
 	int r;
+
+	if (!sqldb  && !Open(true)) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "%s", "Annotations could not be added, database failed to open");
+		return;
+	}
 
 	sqlite3_snprintf(sizeof(sql),
 	                 sql,

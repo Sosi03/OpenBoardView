@@ -21,7 +21,8 @@ struct Annotations {
 	int Init(void);
 
 	int SetFilename(const std::string &f);
-	int Load(void);
+	bool Load();
+	bool Open(bool create);
 	int Close(void);
 	void Remove(int id);
 	void Add(int side, double x, double y, const char *net, const char *part, const char *pin, const char *note);
