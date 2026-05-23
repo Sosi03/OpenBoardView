@@ -214,7 +214,7 @@ bool GenCADFile::parse_components() {
 			if (shape_ref_ast) {
 				char *shape_name_str = get_nonquoted_or_quoted_string_child(shape_ref_ast, "shape_name");
 				if (shape_name_str && *shape_name_str) {
-					PositionedNamedShape duplicate_check_id{brd_part.p1.x, brd_part.p1.y, shape_name_str};
+					PositionedNamedShape duplicate_check_id{brd_part.mounting_side, brd_part.p1.x, brd_part.p1.y, shape_name_str};
 					if (!m_parsed_shapes.insert(duplicate_check_id).second)
 					{
 						i++;

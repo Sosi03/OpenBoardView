@@ -89,7 +89,7 @@ class GenCADFile : public BRDFileBase {
 	std::map<std::string, PadStackInfo> m_pad_stack_info_cache;
 
 	// stores all loaded shapes to perform duplicate detection
-	typedef std::tuple<int, int, std::string> PositionedNamedShape;
+	typedef std::tuple<BRDPartMountingSide, int, int, std::string> PositionedNamedShape;
 	std::set<PositionedNamedShape> m_parsed_shapes;
 	int nc_counter = 0;
 
